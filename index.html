@@ -84,9 +84,10 @@
             <thead>
                 <tr>
                     <th>Bowler</th>
-                    <th>Date</th>
-                    <th>Score</th>
-                    <th>Actions</th>
+                    <th>Best Score</th>
+                    <th>Average of Best 3</th>
+                    <th>Handicap</th>
+                    <th>Enter Score</th>
                 </tr>
             </thead>
             <tbody id="bowlers-table">
@@ -98,8 +99,8 @@
     <script>
         const apiKey = 'AIzaSyAGuwRA6BVhvK-4e_5TnxPw0lKI-EgI9T0';
         const spreadsheetId = '1NzW0fxRZBNGywa27S_hzWvt2pBg6SduY-4MwpMM72LI';
-        const range = 'Sheet1!A:C'; // Adjust this to match your sheet's range
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbzA2IsrOWPyPgtK7Yj3xulEAE033VjjYp0qS3l0cwAG2xSFZmBKltd5dS2ZZECaeqV_LA/exec';
+        const range = 'Sheet1!A:D'; // Adjust this to match your sheet's range (A to D for the summary)
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbyP5clF5caUGM9KYfXgndcHEy7p3qOeDJlYZqz0iDSamGcM2MoDrGf0cypy37-MWZxTQQ/exec';
 
         // Fetch data from Google Sheets
         async function fetchScores() {
@@ -118,17 +119,20 @@
                 tableBody.innerHTML = '';
 
                 values.slice(1).forEach(row => {
-                    const [bowler, date, score] = row;
+                    const [bowler, bestScore, averageBest3, handicap] = row;
 
                     const tr = document.createElement('tr');
                     const bowlerCell = document.createElement('td');
                     bowlerCell.textContent = bowler;
 
-                    const dateCell = document.createElement('td');
-                    dateCell.textContent = date;
+                    const bestScoreCell = document.createElement('td');
+                    bestScoreCell.textContent = bestScore;
 
-                    const scoreCell = document.createElement('td');
-                    scoreCell.textContent = score;
+                    const averageBest3Cell = document.createElement('td');
+                    averageBest3Cell.textContent = averageBest3;
+
+                    const handicapCell = document.createElement('td');
+                    handicapCell.textContent = handicap;
 
                     const actionCell = document.createElement('td');
                     const scoreInput = document.createElement('input');
@@ -140,15 +144,16 @@
                     submitButton.addEventListener('click', () => {
                         const newScore = parseInt(scoreInput.value, 10);
                         if (!isNaN(newScore)) {
-                            submitNewScore(bowler, new Date().toISOString().split('T')[0], newScore);
+                            submitNewScore(bowler, newScore);
                         }
                     });
                     actionCell.appendChild(scoreInput);
                     actionCell.appendChild(submitButton);
 
                     tr.appendChild(bowlerCell);
-                    tr.appendChild(dateCell);
-                    tr.appendChild(scoreCell);
+                    tr.appendChild(bestScoreCell);
+                    tr.appendChild(averageBest3Cell);
+                    tr.appendChild(handicapCell);
                     tr.appendChild(actionCell);
 
                     tableBody.appendChild(tr);
@@ -159,16 +164,18 @@
         }
 
         // Submit new score to the Google Apps Script
-        async function submitNewScore(bowler, date, score) {
+        async function submitNewScore(bowler, score) {
             try {
+                console.log('Submitting score:', { bowler, score });
+
                 const response = await fetch(scriptUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bowler, date, score })
+                    body: JSON.stringify({ bowler, score })
                 });
 
                 const result = await response.json();
-                console.log(result);
+                console.log('Response from server:', result);
 
                 // Reload data to show the new score
                 loadBowlingData();
