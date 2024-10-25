@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bowling League Stats Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .header {
+            position: relative;
+            background-image: url('bowling background.jpg');
+            background-size: cover;
+            background-position: center;
+            height: 400px; /* Adjust this height to fit the image size */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .header-title {
+            position: absolute;
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: rgba(255, 255, 255, 0.9); /* Light background for readability */
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        input {
+            width: 100%;
+        }
+
+        .handicap {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-title">Jesus Died for Our Pins</div>
+    </div>
+
+    <div class="content">
+        <table>
+            <thead>
+                <tr>
+                    <th>Bowler</th>
+                    <th>Enter Score</th>
+                    <th>All Scores</th>
+                    <th>Best 3 Games</th>
+                    <th>Rolling Average (Excluding High & 2 Lows)</th>
+                    <th>Handicap</th>
+                </tr>
+            </thead>
+            <tbody id="bowlers-table">
+                <!-- JavaScript will populate this table -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const bowlers = [
+            "Austin", "Nich", "Nick", "Jason", "Zach", "Mason", "Kibbles",
+            "Andrew", "Greg", "Barney", "Tall one from Alabama", "#12"
+        ];
+
+        const bowlersData = bowlers.map(name => ({
+            name,
+            scores: [],
+            bestThree: [],
+            rollingAverage: 0,
+            handicap: 0
+        }));
+
+        const calculateRollingAverage = (scores) => {
+            if (scores.length < 4) return 0;
+
+            const sortedScores = [...scores].sort((a, b) => a - b);
+            sortedScores.shift(); // Remove the lowest score
+            sortedScores.shift(); // Remove the second lowest score
+            sortedScores.pop(); // Remove the highest score
+
+            const average = sortedScores.reduce((acc, score) => acc + score, 0) / sortedScores.length;
+            return Math.round(average);
+        };
+
+        const calculateHandicaps = () => {
+            const maxRollingAverage = Math.max(...bowlersData.map(b => b.rollingAverage));
+            bowlersData.forEach(bowler => {
+                bowler.handicap = maxRollingAverage - bowler.rollingAverage;
+            });
+        };
+
+        const updateTable = () => {
+            const tbody = document.getElementById('bowlers-table');
+            tbody.innerHTML = '';
+
+            bowlersData.forEach(bowler => {
+                const row = document.createElement('tr');
+
+                const nameCell = document.createElement('td');
+                nameCell.textContent = bowler.name;
+                row.appendChild(nameCell);
+
+                const scoreInputCell = document.createElement('td');
+                const scoreInput = document.createElement('input');
+                scoreInput.type = 'number';
+                scoreInput.min = 0;
+                scoreInput.placeholder = 'Enter score';
+                scoreInput.addEventListener('change', (e) => {
+                    const score = parseInt(e.target.value, 10);
+                    if (!isNaN(score)) {
+                        bowler.scores.push(score);
+                        updateBowlerData(bowler);
+                        updateTable();
+                    }
+                    e.target.value = '';
+                });
+                scoreInputCell.appendChild(scoreInput);
+                row.appendChild(scoreInputCell);
+
+                const scoresCell = document.createElement('td');
+                scoresCell.textContent = bowler.scores.join(', ');
+                row.appendChild(scoresCell);
+
+                const bestThreeCell = document.createElement('td');
+                bestThreeCell.textContent = bowler.bestThree.join(', ');
+                row.appendChild(bestThreeCell);
+
+                const rollingAverageCell = document.createElement('td');
+                rollingAverageCell.textContent = bowler.rollingAverage || '-';
+                row.appendChild(rollingAverageCell);
+
+                const handicapCell = document.createElement('td');
+                handicapCell.className = 'handicap';
+                handicapCell.textContent = `-${bowler.handicap || 0}`;
+                row.appendChild(handicapCell);
+
+                tbody.appendChild(row);
+            });
+        };
+
+        const updateBowlerData = (bowler) => {
+            if (bowler.scores.length >= 3) {
+                const sortedScores = [...bowler.scores].sort((a, b) => b - a);
+                bowler.bestThree = sortedScores.slice(0, 3);
+            }
+
+            bowler.rollingAverage = calculateRollingAverage(bowler.scores);
+            calculateHandicaps();
+        };
+
+        // Populate the table initially
+        updateTable();
+    </script>
+</body>
+</html>
