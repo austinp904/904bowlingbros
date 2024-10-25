@@ -23,7 +23,7 @@
             width: 100%;
             height: auto;
             display: block;
-            object-fit: contain; /* Ensures the whole image is visible without being cropped */
+            object-fit: contain;
         }
 
         .header-title {
@@ -37,7 +37,7 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
             text-align: center;
             width: 100%;
-            background: rgba(0, 0, 0, 0.4); /* A semi-transparent background for better readability */
+            background: rgba(0, 0, 0, 0.4);
             padding: 10px;
             box-sizing: border-box;
         }
@@ -49,7 +49,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            background-color: rgba(255, 255, 255, 0.9); /* Light background for readability */
+            background-color: rgba(255, 255, 255, 0.9);
         }
 
         th, td {
@@ -84,8 +84,11 @@
             <thead>
                 <tr>
                     <th>Bowler</th>
-                    <th>Date</th>
-                    <th>Score</th>
+                    <th>Enter Score</th>
+                    <th>All Scores</th>
+                    <th>Best 3 Games</th>
+                    <th>Rolling Average (Excluding High & 2 Lows)</th>
+                    <th>Handicap</th>
                 </tr>
             </thead>
             <tbody id="bowlers-table">
@@ -95,63 +98,127 @@
     </div>
 
     <script>
-        const apiKey = 'AIzaSyAGuwRA6BVhvK-4e_5TnxPw0lKI-EgI9T0'; // Your API key
-        const spreadsheetId = 'https://docs.google.com/spreadsheets/d/1NzW0fxRZBNGywa27S_hzWvt2pBg6SduY-4MwpMM72LI/edit?usp=sharing'; // Your Spreadsheet ID
-        const range = 'Sheet1!A:C'; // Adjust if needed
+        const apiKey = 'AIzaSyAGuwRA6BVhvK-4e_5TnxPw0lKI-EgI9T0';
+        const spreadsheetId = '1NzW0fxRZBNGywa27S_hzWvt2pBg6SduY-4MwpMM72LI';
+        const range = 'Sheet1!A:C';
 
-        // Function to fetch data from the Google Sheet
+        // Fetch data from Google Sheets
         async function fetchScores() {
             const response = await fetch(
                 `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}?key=${apiKey}`
             );
-
-            // Convert response to JSON
             const data = await response.json();
-
-            // Log the data to the console to see what is fetched
-            console.log('Fetched Data:', data);
-            
-            // Return the values (rows of the spreadsheet)
             return data.values;
         }
 
-        // Example function to load and display data
+        // Calculate rolling average excluding the highest and two lowest scores
+        function calculateRollingAverage(scores) {
+            if (scores.length < 4) return 0;
+
+            const sortedScores = [...scores].sort((a, b) => a - b);
+            sortedScores.shift(); // Remove the lowest score
+            sortedScores.shift(); // Remove the second lowest score
+            sortedScores.pop(); // Remove the highest score
+
+            const average = sortedScores.reduce((acc, score) => acc + score, 0) / sortedScores.length;
+            return Math.round(average);
+        }
+
+        // Calculate handicaps based on the highest rolling average
+        function calculateHandicaps(bowlersData) {
+            const maxRollingAverage = Math.max(...bowlersData.map(b => b.rollingAverage));
+            bowlersData.forEach(bowler => {
+                bowler.handicap = maxRollingAverage - bowler.rollingAverage;
+            });
+        }
+
+        // Load and display data
         async function loadBowlingData() {
             try {
                 const values = await fetchScores();
+                const bowlersData = {};
 
-                // Check if we received data
-                if (values) {
-                    const tableBody = document.getElementById('bowlers-table');
-                    tableBody.innerHTML = ''; // Clear existing rows
+                // Organize data by bowler
+                values.slice(1).forEach(row => {
+                    const [bowler, date, score] = row;
+                    if (!bowlersData[bowler]) {
+                        bowlersData[bowler] = { scores: [], bestThree: [], rollingAverage: 0, handicap: 0 };
+                    }
+                    bowlersData[bowler].scores.push(parseInt(score));
+                });
 
-                    // Skip the header row with slice(1)
-                    values.slice(1).forEach(row => {
-                        const [bowler, date, score] = row;
+                // Calculate rolling averages, best three games, and handicaps
+                Object.values(bowlersData).forEach(bowler => {
+                    const sortedScores = [...bowler.scores].sort((a, b) => b - a);
+                    bowler.bestThree = sortedScores.slice(0, 3);
+                    bowler.rollingAverage = calculateRollingAverage(bowler.scores);
+                });
+                calculateHandicaps(Object.values(bowlersData));
 
-                        // Create a new row for each entry
-                        const tr = document.createElement('tr');
-                        const bowlerCell = document.createElement('td');
-                        const dateCell = document.createElement('td');
-                        const scoreCell = document.createElement('td');
+                // Display the data in the table
+                const tableBody = document.getElementById('bowlers-table');
+                tableBody.innerHTML = '';
 
-                        bowlerCell.textContent = bowler;
-                        dateCell.textContent = date;
-                        scoreCell.textContent = score;
+                Object.entries(bowlersData).forEach(([name, bowler]) => {
+                    const tr = document.createElement('tr');
 
-                        tr.appendChild(bowlerCell);
-                        tr.appendChild(dateCell);
-                        tr.appendChild(scoreCell);
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = name;
+                    tr.appendChild(nameCell);
 
-                        tableBody.appendChild(tr);
+                    const scoreInputCell = document.createElement('td');
+                    const scoreInput = document.createElement('input');
+                    scoreInput.type = 'number';
+                    scoreInput.placeholder = 'Enter score';
+                    scoreInput.min = 0;
+                    scoreInput.addEventListener('change', (e) => {
+                        const newScore = parseInt(e.target.value, 10);
+                        if (!isNaN(newScore)) {
+                            bowler.scores.push(newScore);
+                            updateBowlerData(bowler);
+                            updateTable(bowlersData);
+                        }
+                        e.target.value = '';
                     });
-                }
+                    scoreInputCell.appendChild(scoreInput);
+                    tr.appendChild(scoreInputCell);
+
+                    const scoresCell = document.createElement('td');
+                    scoresCell.textContent = bowler.scores.join(', ');
+                    tr.appendChild(scoresCell);
+
+                    const bestThreeCell = document.createElement('td');
+                    bestThreeCell.textContent = bowler.bestThree.join(', ');
+                    tr.appendChild(bestThreeCell);
+
+                    const rollingAverageCell = document.createElement('td');
+                    rollingAverageCell.textContent = bowler.rollingAverage || '-';
+                    tr.appendChild(rollingAverageCell);
+
+                    const handicapCell = document.createElement('td');
+                    handicapCell.textContent = `-${bowler.handicap || 0}`;
+                    tr.appendChild(handicapCell);
+
+                    tableBody.appendChild(tr);
+                });
             } catch (error) {
                 console.error('Error fetching data:', error);
             }
         }
 
-        // Call the function to load data when the page loads
+        // Update bowler data and refresh the table
+        function updateBowlerData(bowler) {
+            const sortedScores = [...bowler.scores].sort((a, b) => b - a);
+            bowler.bestThree = sortedScores.slice(0, 3);
+            bowler.rollingAverage = calculateRollingAverage(bowler.scores);
+        }
+
+        // Refresh table with updated data
+        function updateTable(bowlersData) {
+            calculateHandicaps(Object.values(bowlersData));
+            loadBowlingData();
+        }
+
         loadBowlingData();
     </script>
 </body>
