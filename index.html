@@ -84,11 +84,9 @@
             <thead>
                 <tr>
                     <th>Bowler</th>
-                    <th>Enter Score</th>
-                    <th>All Scores</th>
-                    <th>Best 3 Games</th>
-                    <th>Rolling Average (Excluding High & 2 Lows)</th>
-                    <th>Handicap</th>
+                    <th>Date</th>
+                    <th>Score</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="bowlers-table">
@@ -100,7 +98,8 @@
     <script>
         const apiKey = 'AIzaSyAGuwRA6BVhvK-4e_5TnxPw0lKI-EgI9T0';
         const spreadsheetId = '1NzW0fxRZBNGywa27S_hzWvt2pBg6SduY-4MwpMM72LI';
-        const range = 'Sheet1!A:C';
+        const range = 'Sheet1!A:C'; // Adjust this to match your sheet's range
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbzA2IsrOWPyPgtK7Yj3xulEAE033VjjYp0qS3l0cwAG2xSFZmBKltd5dS2ZZECaeqV_LA/exec';
 
         // Fetch data from Google Sheets
         async function fetchScores() {
@@ -111,93 +110,46 @@
             return data.values;
         }
 
-        // Calculate rolling average excluding the highest and two lowest scores
-        function calculateRollingAverage(scores) {
-            if (scores.length < 4) return 0;
-
-            const sortedScores = [...scores].sort((a, b) => a - b);
-            sortedScores.shift(); // Remove the lowest score
-            sortedScores.shift(); // Remove the second lowest score
-            sortedScores.pop(); // Remove the highest score
-
-            const average = sortedScores.reduce((acc, score) => acc + score, 0) / sortedScores.length;
-            return Math.round(average);
-        }
-
-        // Calculate handicaps based on the highest rolling average
-        function calculateHandicaps(bowlersData) {
-            const maxRollingAverage = Math.max(...bowlersData.map(b => b.rollingAverage));
-            bowlersData.forEach(bowler => {
-                bowler.handicap = maxRollingAverage - bowler.rollingAverage;
-            });
-        }
-
         // Load and display data
         async function loadBowlingData() {
             try {
                 const values = await fetchScores();
-                const bowlersData = {};
-
-                // Organize data by bowler
-                values.slice(1).forEach(row => {
-                    const [bowler, date, score] = row;
-                    if (!bowlersData[bowler]) {
-                        bowlersData[bowler] = { scores: [], bestThree: [], rollingAverage: 0, handicap: 0 };
-                    }
-                    bowlersData[bowler].scores.push(parseInt(score));
-                });
-
-                // Calculate rolling averages, best three games, and handicaps
-                Object.values(bowlersData).forEach(bowler => {
-                    const sortedScores = [...bowler.scores].sort((a, b) => b - a);
-                    bowler.bestThree = sortedScores.slice(0, 3);
-                    bowler.rollingAverage = calculateRollingAverage(bowler.scores);
-                });
-                calculateHandicaps(Object.values(bowlersData));
-
-                // Display the data in the table
                 const tableBody = document.getElementById('bowlers-table');
                 tableBody.innerHTML = '';
 
-                Object.entries(bowlersData).forEach(([name, bowler]) => {
+                values.slice(1).forEach(row => {
+                    const [bowler, date, score] = row;
+
                     const tr = document.createElement('tr');
+                    const bowlerCell = document.createElement('td');
+                    bowlerCell.textContent = bowler;
 
-                    const nameCell = document.createElement('td');
-                    nameCell.textContent = name;
-                    tr.appendChild(nameCell);
+                    const dateCell = document.createElement('td');
+                    dateCell.textContent = date;
 
-                    const scoreInputCell = document.createElement('td');
+                    const scoreCell = document.createElement('td');
+                    scoreCell.textContent = score;
+
+                    const actionCell = document.createElement('td');
                     const scoreInput = document.createElement('input');
                     scoreInput.type = 'number';
-                    scoreInput.placeholder = 'Enter score';
+                    scoreInput.placeholder = 'Enter new score';
                     scoreInput.min = 0;
-                    scoreInput.addEventListener('change', (e) => {
-                        const newScore = parseInt(e.target.value, 10);
+                    const submitButton = document.createElement('button');
+                    submitButton.textContent = 'Submit';
+                    submitButton.addEventListener('click', () => {
+                        const newScore = parseInt(scoreInput.value, 10);
                         if (!isNaN(newScore)) {
-                            bowler.scores.push(newScore);
-                            updateBowlerData(bowler);
-                            updateTable(bowlersData);
+                            submitNewScore(bowler, new Date().toISOString().split('T')[0], newScore);
                         }
-                        e.target.value = '';
                     });
-                    scoreInputCell.appendChild(scoreInput);
-                    tr.appendChild(scoreInputCell);
+                    actionCell.appendChild(scoreInput);
+                    actionCell.appendChild(submitButton);
 
-                    const scoresCell = document.createElement('td');
-                    scoresCell.textContent = bowler.scores.join(', ');
-                    tr.appendChild(scoresCell);
-
-                    const bestThreeCell = document.createElement('td');
-                    bestThreeCell.textContent = bowler.bestThree.join(', ');
-                    tr.appendChild(bestThreeCell);
-
-                    const rollingAverageCell = document.createElement('td');
-                    rollingAverageCell.textContent = bowler.rollingAverage || '-';
-                    tr.appendChild(rollingAverageCell);
-
-                    const handicapCell = document.createElement('td');
-                    handicapCell.textContent = `-${bowler.handicap || 0}`;
-                    tr.appendChild(handicapCell);
+                    tr.appendChild(bowlerCell);
+                    tr.appendChild(dateCell);
+                    tr.appendChild(scoreCell);
+                    tr.appendChild(actionCell);
 
                     tableBody.appendChild(tr);
                 });
@@ -206,19 +158,26 @@
             }
         }
 
-        // Update bowler data and refresh the table
-        function updateBowlerData(bowler) {
-            const sortedScores = [...bowler.scores].sort((a, b) => b - a);
-            bowler.bestThree = sortedScores.slice(0, 3);
-            bowler.rollingAverage = calculateRollingAverage(bowler.scores);
+        // Submit new score to the Google Apps Script
+        async function submitNewScore(bowler, date, score) {
+            try {
+                const response = await fetch(scriptUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bowler, date, score })
+                });
+
+                const result = await response.json();
+                console.log(result);
+
+                // Reload data to show the new score
+                loadBowlingData();
+            } catch (error) {
+                console.error('Error submitting score:', error);
+            }
         }
 
-        // Refresh table with updated data
-        function updateTable(bowlersData) {
-            calculateHandicaps(Object.values(bowlersData));
-            loadBowlingData();
-        }
-
+        // Load the data when the page loads
         loadBowlingData();
     </script>
 </body>
