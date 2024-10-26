@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bowling League Stats Tracker</title>
     <style>
-        /* Your existing CSS styles */
+        /* CSS Styles */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -86,7 +85,7 @@
                 <tr>
                     <th>Bowler</th>
                     <th>Best Score</th>
-                    <th>Average of Best 3</th>
+                    <th>Adjusted Average</th>
                     <th>Handicap</th>
                     <th>Enter Score</th>
                 </tr>
@@ -98,10 +97,10 @@
     </div>
 
     <script>
-        const apiKey = 'AIzaSyAGuwRA6BVhvK-4e_5TnxPw0lKI-EgI9T0'; // Replace with your Google API Key
+        const apiKey = 'YOUR_GOOGLE_API_KEY'; // Replace with your actual Google API Key
         const spreadsheetId = '1NzW0fxRZBNGywa27S_hzWvt2pBg6SduY-4MwpMM72LI';
-        const range = 'Sheet1!A:Z'; // Adjust this to match your sheet's range (A to D for the summary)
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbwSw9C1hh-NFr-J8xRB8ARrsUmN34xCtnbmZBhC5TTK61YSlY4DT1peFV1IyLDgA2I7cg/exec';
+        const range = 'Sheet1!A:D'; // Adjust this to match your sheet's range (A to D for the summary)
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbyqWodQdrwtQAO4nnXQsRTuMYxF4aMYHJJDuOm_dxbG2Sb4_NbEWHT_XC33_DHNi_R2ww/exec';
 
         // Fetch data from Google Sheets
         async function fetchScores() {
@@ -119,8 +118,28 @@
                 const tableBody = document.getElementById('bowlers-table');
                 tableBody.innerHTML = '';
 
-                values.slice(1).forEach(row => {
-                    const [bowler, bestScore, averageBest3, handicap] = row;
+                // Convert data to an array of objects
+                const bowlersData = values.slice(1).map(row => {
+                    const [bowler, bestScore, adjustedAverage, handicap] = row;
+                    return {
+                        bowler,
+                        bestScore,
+                        adjustedAverage,
+                        handicap: parseFloat(handicap)
+                    };
+                });
+
+                // Sort the array by handicap (lowest to highest), handling NaN values
+                bowlersData.sort((a, b) => {
+                    if (isNaN(a.handicap) && isNaN(b.handicap)) return 0;
+                    if (isNaN(a.handicap)) return 1;
+                    if (isNaN(b.handicap)) return -1;
+                    return a.handicap - b.handicap;
+                });
+
+                // Loop through the sorted array to create table rows
+                bowlersData.forEach(bowlerData => {
+                    const { bowler, bestScore, adjustedAverage, handicap } = bowlerData;
 
                     const tr = document.createElement('tr');
                     const bowlerCell = document.createElement('td');
@@ -129,11 +148,11 @@
                     const bestScoreCell = document.createElement('td');
                     bestScoreCell.textContent = bestScore;
 
-                    const averageBest3Cell = document.createElement('td');
-                    averageBest3Cell.textContent = averageBest3;
+                    const adjustedAverageCell = document.createElement('td');
+                    adjustedAverageCell.textContent = adjustedAverage;
 
                     const handicapCell = document.createElement('td');
-                    handicapCell.textContent = handicap;
+                    handicapCell.textContent = isNaN(handicap) ? '' : handicap;
 
                     const actionCell = document.createElement('td');
                     const scoreInput = document.createElement('input');
@@ -153,7 +172,7 @@
 
                     tr.appendChild(bowlerCell);
                     tr.appendChild(bestScoreCell);
-                    tr.appendChild(averageBest3Cell);
+                    tr.appendChild(adjustedAverageCell);
                     tr.appendChild(handicapCell);
                     tr.appendChild(actionCell);
 
