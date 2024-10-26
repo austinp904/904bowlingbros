@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bowling League Stats Tracker</title>
     <style>
+        /* Your existing CSS styles */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -97,10 +98,10 @@
     </div>
 
     <script>
-        const apiKey = 'AIzaSyAGuwRA6BVhvK-4e_5TnxPw0lKI-EgI9T0';
-        const spreadsheetId = '1NzW0fxRZBNGywa27S_hzWvt2pBg6SduY-4MwpMM72LI';
+        const apiKey = 'YOUR_GOOGLE_API_KEY';
+        const spreadsheetId = 'YOUR_SPREADSHEET_ID';
         const range = 'Sheet1!A:D'; // Adjust this to match your sheet's range (A to D for the summary)
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbyyR7fDqz3ipbGg3D7joSmP2Ic2KYPySYTqH8AWjzKRzgM40HPs2e2UQ4XpwMM0QeB6Iw/exec';
+        const scriptUrl = 'YOUR_DEPLOYED_SCRIPT_URL';
 
         // Fetch data from Google Sheets
         async function fetchScores() {
@@ -168,11 +169,20 @@
             try {
                 console.log('Submitting score:', { bowler, score });
 
+                // Prepare form data
+                const formData = new URLSearchParams();
+                formData.append('bowler', bowler);
+                formData.append('score', score);
+
                 const response = await fetch(scriptUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bowler, score })
+                    body: formData
+                    // No custom headers are set
                 });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
 
                 const result = await response.json();
                 console.log('Response from server:', result);
