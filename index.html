@@ -97,10 +97,10 @@
     </div>
 
     <script>
-        const apiKey = 'AIzaSyAGuwRA6BVhvK-4e_5TnxPw0lKI-EgI9T0';
-        const spreadsheetId = '1NzW0fxRZBNGywa27S_hzWvt2pBg6SduY-4MwpMM72LI';
+        const apiKey = 'AIzaSyAGuwRA6BVhvK-4e_5TnxPw0lKI-EgI9T0'; // Replace with your actual Google API Key
+        const spreadsheetId = '1NzW0fxRZBNGywa27S_hzWvt2pBg6SduY-4MwpMM72LI'; // Replace with your actual Spreadsheet ID
         const range = 'Sheet1!A:E'; // Adjust to match your sheet's range
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbxp3wvpGf30LJnfS4h90o_S4DZ8f4pMKN0gzY1uMTDN9EwbZe-USmNNkzsU2tojGh39rA/exec';
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbwTPl_-Vl9TYbyBo_4rapxFBMdg_NB8I-JzZYvoYi4pdPUf3HMrKrHQrAbvH8VVlmo1rQ/exec'; // Replace with your actual Apps Script URL
 
         let bowlersMap = {}; // Map to store bowlers and their handicaps
 
@@ -216,20 +216,21 @@
             try {
                 console.log('Submitting score:', { bowler, score });
 
-                // Prepare form data
-                const formData = new URLSearchParams();
-                formData.append('bowler', bowler);
-                formData.append('score', score);
+                // Prepare form data as a URL-encoded string
+                const formData = `bowler=${encodeURIComponent(bowler)}&score=${encodeURIComponent(score)}`;
 
                 const response = await fetch(scriptUrl, {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded', // Use a simple content type
+                    },
+                    body: formData,
                 });
 
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Error response from Apps Script:', errorText);
-                    throw new Error('Network response was not ok');
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
                 const result = await response.json();
